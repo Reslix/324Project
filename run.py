@@ -37,12 +37,20 @@ class ProbModel():
         The covariance is calculated by 1/(size N)(size K)* sum N(sum K(n-E[N])(k-E[K])))
         The expectation should already be calculated as the (sum (p*x))
         Expectation method should already be run, otherwise an error will appear.
+        Variance should also be run.
         """
         for cat in self.probabilities:
-            self.covariances[cat] = 0
-            for row in self.data:
-                self.covariances[cat]+= (float(row['Attrition'])-self.expectations['Attrition'])*\
-                (float(row[cat])-self.expectations[cat])/((self.N)**2)
+            if cat != 'Attrition':
+                self.covariances[cat] = 0
+                for x in [0,1]:
+                    for sub_cat in self.probabilities[cat]:
+                        self.covariances[cat] += ((float(x)-self.expectations['Attrition'])*(float(sub_cat)-self.expectations[cat])*(self.probabilities['Attrition'][x])*(self.probabilities[cat][sub_cat]))
+                        #print(cat,(float(x)-self.expectations['Attrition'])*(float(sub_cat)-self.expectations[cat])*(self.probabilities['Attrition'][x])*(self.probabilities[cat][sub_cat]),self.covariances[cat])
+
+            else:
+                self.covariances[cat] = self.variances[cat]
+
+            self.rho[cat] = self.covariances[cat]/((self.variances['Attrition']*self.variances[cat])**0.5)
 
 
     def expectation(self):
@@ -82,13 +90,11 @@ class ProbModel():
         for category in categories:
             self.attr_cond_single[category] = {}
             for sub_category in self.probabilities[category]:
-                self.attr_cond_single[category][sub_category] = 0
-                sub_count = 0
+                self.attr_cond_single[category][sub_category] = 0.0
                 for row in self.data:
                     if row[category] is sub_category:
-                        sub_count += 1
                         self.attr_cond_single[category][sub_category] += row['Attrition']
-                self.attr_cond_single[category][sub_category] /= sub_count
+                self.attr_cond_single[category][sub_category] /= self.N
                 self.attr_cond_single[category][sub_category] /= self.probabilities[category][sub_category]
 
 
@@ -99,6 +105,7 @@ class ProbModel():
         self.variances = {}
         self.std_devs = {}
         self.covariances = {}
+        self.rho = {}
 
         with open(file,'r') as f:
             r = csv.DictReader(f)
@@ -118,28 +125,32 @@ if __name__ == '__main__':
     If you want to use the model for stuff like 
     """
     p = ProbModel(file)
-    print("Some Probabilities:")
+    print("\nSome Probabilities:")
     for x in categories:
         if x not in scalar_cat:
             print(str(x),str(p.probabilities[x]))
 
-    print("Some Conditionals:")
+    print("\nSome Conditionals:")
     for x in categories:
         if x not in scalar_cat:
             print(str(x),str(p.attr_cond_single[x]))
 
-    print("Expectations:")
+    print("\nExpectations:")
     for x in categories:
         print(str(x),str(p.expectations[x]))
 
-    print("Variances:")
+    print("\nVariances:")
     for x in categories:
         print(str(x),str(p.variances[x]))
 
-    print("Standard Deviations:")
+    print("\nStandard Deviations:")
     for x in categories:
         print(str(x),str(p.std_devs[x]))
         
-    print("Covariances:")
+    print("\nCovariances:")
     for x in categories:
         print(str(x),str(p.covariances[x]))
+
+    print("\nRho:")
+    for x in categories:
+        print(str(x),str(p.rho[x]))
